@@ -58,6 +58,9 @@
         .trt-btn { width: 100%; padding: 12px; border: none; border-radius: 99px; font-weight: 700; font-size: 13px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; }
         .trt-btn-blue { background: #1d9bf0; color: #fff; }
         .trt-btn-red { background: #f4212e; color: #fff; }
+        .trt-btn-purge { background: #7a0912; color: #fff; margin-top: 8px; border: 1px solid #f4212e; }
+        .trt-btn-stop { background: #ffd400; color: #000; margin-top: 8px; }
+        .trt-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .trt-btn-outline { background: transparent; border: 1px solid #536471; color: #fff; font-size: 11px; padding: 8px; }
         #trt-list-items { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-bottom: 20px; }
         .trt-card { background: #16181c; border: 1px solid #2f3336; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; justify-content: space-between; min-height: 160px; transition: 0.2s; }
@@ -107,6 +110,7 @@
                     <div style="display:flex; gap:6px; margin-top:8px; justify-content:center;">
                         <button class="trt-btn trt-btn-outline" id="trt-select-all-btn">Select All</button>
                         <button class="trt-btn trt-btn-outline" id="trt-load-more">Load More</button>
+                        <button class="trt-btn trt-btn-outline" id="trt-screen-btn" title="Collect your tweets currently visible on the X page">From Screen</button>
                         <button class="trt-btn trt-btn-outline" id="trt-top-btn">↑ Top</button>
                     </div>
                 </div>
@@ -117,6 +121,10 @@
     <!-- Footer: Batch Actions -->
     <div class="trt-footer" id="trt-actions" style="display:none;">
         <button class="trt-btn trt-btn-red" id="trt-delete-btn">Delete Selected Items</button>
+        <div style="display:flex; gap:6px;">
+            <button class="trt-btn trt-btn-purge" id="trt-purge-api-btn">🔁 API Auto Delete</button>
+            <button class="trt-btn trt-btn-purge" id="trt-purge-screen-btn">🖥 Screen Auto Delete</button>
+        </div>
     </div>
     `;
 
@@ -214,7 +222,11 @@
                 vault: new Map(),     // Retrieved tweets (ID -> Data)
                 queue: new Set(),     // IDs selected for deletion
                 deleted: new Set(),   // IDs successfully deleted
-                isFetching: false     // Guard against concurrent fetch calls
+                isFetching: false,    // Guard against concurrent fetch calls
+                isPurging: false,     // Auto "delete until 0" mode running
+                stopRequested: false, // User pressed Stop during auto mode
+                nextCursor: null,     // Bottom cursor of the last loaded page
+                lastLoadResponse: null
             };
         }
 
@@ -242,6 +254,10 @@
                 }
             } catch (e) { console.warn("TRT Identity Resolve Error:", e); }
             return { uid, handle };
+        }
+
+        escape(str) {
+            return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
         }
 
         // Helper for DOM access
@@ -290,8 +306,14 @@
             this.get('trt-init-btn').onclick = () => this.fetchTweets();
             this.get('trt-load-more').onclick = () => { this.flushState(); this.fetchTweets(); };
             this.get('trt-delete-btn').onclick = () => this.executeDeletion();
+            this.get('trt-purge-api-btn').onclick = () => this.purgeAll('api');
+            this.get('trt-purge-screen-btn').onclick = () => this.purgeAll('screen');
             this.get('trt-close-btn').onclick = () => { this.flushState(); panel.remove(); };
             this.get('trt-select-all-btn').onclick = () => this.toggleSelectAll();
+            this.get('trt-screen-btn').onclick = async () => {
+                this.get('trt-screen-btn').disabled = true;
+                try { await this.scanScreen(true); } finally { this.get('trt-screen-btn').disabled = this.state.isPurging; }
+            };
             this.get('trt-top-btn').onclick = () => {
                 const container = document.querySelector('.trt-content');
                 if (container) container.scrollTo({ top: 0, behavior: 'smooth' });
@@ -309,12 +331,41 @@
         /**
          * Fetches user tweets using the resolved GraphQL endpoint.
          */
-        async fetchTweets() {
-            if (this.state.isFetching || !this.auth.bearer || !this.auth.uid) return;
+        /**
+         * Fetches user tweets using the resolved GraphQL endpoint.
+         * X often returns a nearly-empty first page (only cursors, or only
+         * tombstones of recently deleted tweets) even though older tweets exist.
+         * So if a page yields nothing, follow the bottom cursor a few pages deeper.
+         */
+        async fetchTweets(maxPages = 15) {
+            if (this.state.isFetching || !this.auth.bearer || !this.auth.uid) return false;
             this.state.isFetching = true;
             this.log(`Scanning API for @${this.auth.handle}...`);
 
-            // Variables for the GraphQL query
+            let cursor = null;
+            try {
+                for (let page = 1; page <= maxPages; page++) {
+                    const res = await this.fetchPage(cursor);
+                    if (res !== true) return res; // false or 'ratelimited'
+
+                    if (this.state.vault.size > 0) break;          // got something → done
+                    const next = this.state.nextCursor;
+                    if (!next || next === cursor) break;          // reached the end
+                    cursor = next;
+                    this.log(`Page ${page} empty — checking older page...`);
+                    await this.sleep(800);
+                }
+                this.log(this.state.vault.size ? "Scan Complete" : "Scan Complete — 0 found (see console)");
+                return true;
+            } finally {
+                this.state.isFetching = false;
+            }
+        }
+
+        /**
+         * Fetches one page of UserTweets. Returns true / false / 'ratelimited'.
+         */
+        async fetchPage(cursor) {
             const variables = { 
                 userId: this.auth.uid, 
                 count: 40, 
@@ -322,7 +373,8 @@
                 withQuickPromoteEligibilityTweetFields: true, 
                 withVoice: true 
             };
-            
+            if (cursor) variables.cursor = cursor;
+
             const target = this.auth.endpoints['UserTweets'];
             const url = `https://x.com${target.endpoint}?variables=${encodeURIComponent(JSON.stringify(variables))}&features=${encodeURIComponent(JSON.stringify(this.apiConfig.features))}&fieldToggles=${encodeURIComponent(JSON.stringify(this.apiConfig.fieldToggles))}`;
 
@@ -334,13 +386,31 @@
                         "x-twitter-active-user": "yes" 
                     }
                 });
+                const remaining = r.headers.get('x-rate-limit-remaining');
+                const reset = Number(r.headers.get('x-rate-limit-reset'));
+                if (remaining !== null) {
+                    console.log(`[TRT] UserTweets rate limit: ${remaining} left, resets ${reset ? new Date(reset * 1000).toLocaleTimeString() : '?'}`);
+                }
+                if (r.status === 429) {
+                    this.state.lastLoadResponse = r;
+                    this.log("<span class='trt-error-text'>Rate Limited (Load)</span>");
+                    return 'ratelimited';
+                }
+                if (!r.ok) {
+                    const body = await r.text().catch(() => '');
+                    console.error(`[TRT] UserTweets HTTP ${r.status}`, body);
+                    this.log(`<span class='trt-error-text'>Fetch Failed: HTTP ${r.status} (see console)</span>`);
+                    return false;
+                }
                 const data = await r.json();
+                console.log('[TRT] raw response:', data); // inspect here in DevTools
+                if (data.errors?.length) console.warn('[TRT] GraphQL errors:', data.errors);
                 this.parseResponse(data);
-                this.log("Scan Complete");
+                return true;
             } catch (e) { 
-                this.log("<span class='trt-error-text'>Fetch Failed</span>"); 
-            } finally { 
-                this.state.isFetching = false; 
+                console.error('[TRT] Fetch error:', e);
+                this.log("<span class='trt-error-text'>Fetch Failed (see console)</span>"); 
+                return false;
             }
         }
 
@@ -349,34 +419,49 @@
          * GraphQL responses for timelines are deeply nested and vary in structure.
          */
         parseResponse(obj) {
+            let seen = 0;
+            const extract = (result) => {
+                if (!result) return;
+                // Restricted/limited tweets wrap the real tweet one level deeper
+                if (result.__typename === 'TweetWithVisibilityResults' && result.tweet) result = result.tweet;
+                const legacy = result.legacy;
+                if (!legacy) return; // TweetTombstone, TweetUnavailable, etc.
+                seen++;
+
+                const userId = legacy.user_id_str || result.core?.user_results?.result?.rest_id;
+                const tweetId = result.rest_id || legacy.id_str;
+                // Long posts (Premium) keep the full text in note_tweet
+                const text = result.note_tweet?.note_tweet_results?.result?.text || legacy.full_text || '';
+
+                // Verify ownership: only add if the tweet belongs to the authenticated user
+                if (tweetId && String(userId) === String(this.auth.uid)) {
+                    this.state.vault.set(tweetId, {
+                        id: tweetId,
+                        text,
+                        date: legacy.created_at,
+                        timestamp: legacy.created_at ? new Date(legacy.created_at).getTime() : 0
+                    });
+                }
+            };
+
+            this.state.nextCursor = null;
             const walker = (o) => {
                 if (!o || typeof o !== 'object') return;
-
-                // Identification logic for a tweet entry
-                if (o.entryId && o.content?.itemContent?.tweet_results?.result) {
-                    const result = o.content.itemContent.tweet_results.result;
-                    // Handle 'legacy' nested structure or direct result
-                    const tweetData = result.legacy || result;
-                    const userId = tweetData.user_id_str || result.core?.user_results?.result?.rest_id;
-                    const tweetId = result.rest_id || result.id_str;
-
-                    // Verify ownership: only add if the tweet belongs to the authenticated user
-                    if (tweetId && tweetData.full_text && userId === this.auth.uid) {
-                        this.state.vault.set(tweetId, {
-                            id: tweetId,
-                            text: tweetData.full_text,
-                            date: tweetData.created_at,
-                            timestamp: tweetData.created_at ? new Date(tweetData.created_at).getTime() : 0
-                        });
-                    }
+                if (o.cursorType === 'Bottom' && o.value) {
+                    this.state.nextCursor = o.value;
                     return;
                 }
-
-                // Recurse into all keys
+                // Covers both normal entries (entry.content.itemContent)
+                // and thread/conversation modules (entry.content.items[].item.itemContent)
+                if (o.itemContent?.tweet_results) {
+                    extract(o.itemContent.tweet_results.result);
+                    return;
+                }
                 Object.keys(o).forEach(k => walker(o[k]));
             };
-            
+
             walker(obj);
+            console.log(`[TRT] tweet objects in response: ${seen}, kept (owned by ${this.auth.uid}): ${this.state.vault.size}, next cursor: ${this.state.nextCursor ? 'yes' : 'none'}`);
             this.renderList();
         }
 
@@ -411,7 +496,7 @@
                         <div class="trt-card-date-container">
                         <div class="trt-card-date">${formattedDateTime}</div>
                         </div>
-                        <div class="trt-card-body">${item.text}</div>
+                        <div class="trt-card-body">${this.escape(item.text)}</div>
                     </div>
                     <a href="https://x.com/i/status/${item.id}" target="_blank" class="trt-view-btn">View Live</a>
                 </div>
@@ -442,8 +527,14 @@
             if (sel) sel.innerText = this.state.queue.size;
             if (del) del.innerText = this.state.deleted.size;
             
+            const purging = this.state.isPurging;
+            ['trt-load-more', 'trt-select-all-btn', 'trt-screen-btn'].forEach(id => {
+                const b = this.get(id);
+                if (b) b.disabled = purging;
+            });
+
             if (btn) {
-                btn.disabled = this.state.queue.size === 0;
+                btn.disabled = purging || this.state.queue.size === 0;
                 btn.style.opacity = btn.disabled ? "0.5" : "1";
                 btn.innerText = `Delete ${this.state.queue.size} Selected Items`;
             }
@@ -477,38 +568,247 @@
             
             for (let id of Array.from(this.state.queue)) {
                 this.log(`Executing deletion: ${id}...`);
-                try {
-                    const r = await fetch(`https://x.com${target.endpoint}`, {
-                        method: 'POST',
-                        headers: { 
-                            "authorization": this.auth.bearer, 
-                            "x-csrf-token": this.auth.csrf, 
-                            "content-type": "application/json" 
-                        },
-                        body: JSON.stringify({ 
-                            variables: { tweet_id: id, dark_request: false }, 
-                            queryId: target.queryId 
-                        })
-                    });
-                    
-                    if (r.ok) {
-                        this.state.deleted.add(id);
-                        this.state.vault.delete(id);
-                        this.state.queue.delete(id);
-                        // Remove the card from UI immediately
-                        document.getElementById(`card-${id}`)?.remove();
-                        this.updateCounters();
-                    }
-                } catch (e) {
-                    console.error("Deletion Error:", e);
-                }
+                await this.deleteOne(id, target);
                 // Rate-limiting safety: 600ms delay between operations
-                await new Promise(res => setTimeout(res, 600));
+                await this.sleep(600);
             }
             this.log("Batch Complete");
+        }
+
+        sleep(ms) { return new Promise(res => setTimeout(res, ms)); }
+
+        /**
+         * Fallback when the API returns 0 but tweets are still visible on the profile.
+         * Reads tweet IDs straight from the X page (the "Posts" tab).
+         * Only tweets whose permalink belongs to your own handle are collected,
+         * so other people's tweets you reposted are skipped.
+         * With autoScroll, scrolls the X page down to load more before giving up.
+         */
+        async scanScreen(autoScroll = false, maxCollect = Infinity) {
+            const handle = (this.auth.handle || '').replace(/^@/, '').toLowerCase();
+            if (!handle) { this.log("<span class='trt-error-text'>Handle unknown</span>"); return 0; }
+
+            const collect = () => {
+                let added = 0;
+                document.querySelectorAll('article[data-testid="tweet"]').forEach(article => {
+                    // The timestamp link is the tweet's own permalink: /{handle}/status/{id}
+                    const timeLink = article.querySelector('a[href*="/status/"] time')?.closest('a');
+                    const m = timeLink?.getAttribute('href')?.match(/^\/([^/]+)\/status\/(\d+)/);
+                    if (!m || m[1].toLowerCase() !== handle) return;
+                    const id = m[2];
+                    if (this.state.deleted.has(id) || this.state.vault.has(id)) return;
+                    const dt = timeLink.querySelector('time')?.getAttribute('datetime');
+                    this.state.vault.set(id, {
+                        id,
+                        text: article.querySelector('[data-testid="tweetText"]')?.innerText || '(no text / media only)',
+                        date: dt,
+                        timestamp: dt ? Date.parse(dt) : 0
+                    });
+                    added++;
+                });
+                return added;
+            };
+
+            let total = collect();
+            if (autoScroll) {
+                // X only renders tweets near the viewport; scroll to make it load more
+                let idleRounds = 0;
+                while (idleRounds < 3 && !this.state.stopRequested && this.state.vault.size < maxCollect) {
+                    window.scrollBy(0, window.innerHeight * 2);
+                    this.log(`Scanning screen... ${this.state.vault.size} found`);
+                    await this.sleep(1800);
+                    const added = collect();
+                    total += added;
+                    idleRounds = added ? 0 : idleRounds + 1;
+                }
+            }
+            console.log(`[TRT] screen scan: +${total} (handle @${handle})`);
+            this.renderList();
+            this.log(total ? `Screen Scan: ${total} found` : "Screen Scan: 0 found");
+            return total;
+        }
+
+        /**
+         * Waits for a rate-limit window to reset, using X's reset header if present.
+         * Can be interrupted by the Stop button.
+         */
+        async waitForRateLimit(response) {
+            const reset = Number(response?.headers?.get('x-rate-limit-reset'));
+            let waitMs = reset ? reset * 1000 - Date.now() + 2000 : 60000;
+            waitMs = Math.min(Math.max(waitMs, 15000), 15 * 60 * 1000); // 15s ~ 15min
+            const until = Date.now() + waitMs;
+            while (Date.now() < until && !this.state.stopRequested) {
+                this.log(`Rate limited — waiting ${Math.ceil((until - Date.now()) / 1000)}s...`);
+                await this.sleep(1000);
+            }
+        }
+
+        /**
+         * Deletes a single tweet. Retries on rate limit (429).
+         * Returns true on success, false otherwise.
+         */
+        async deleteOne(id, target, attempt = 0) {
+            try {
+                const r = await fetch(`https://x.com${target.endpoint}`, {
+                    method: 'POST',
+                    headers: { 
+                        "authorization": this.auth.bearer, 
+                        "x-csrf-token": this.auth.csrf, 
+                        "content-type": "application/json" 
+                    },
+                    body: JSON.stringify({ 
+                        variables: { tweet_id: id, dark_request: false }, 
+                        queryId: target.queryId 
+                    })
+                });
+
+                if (r.status === 429 && attempt < 3 && !this.state.stopRequested) {
+                    await this.waitForRateLimit(r);
+                    if (this.state.stopRequested) return false;
+                    return this.deleteOne(id, target, attempt + 1);
+                }
+
+                // GraphQL can return 200 with an errors array, so check the body too
+                let body = null;
+                try { body = await r.json(); } catch (_) {}
+                const gqlFailed = body?.errors?.length && !body?.data?.delete_tweet;
+
+                if (r.ok && !gqlFailed) {
+                    this.state.deleted.add(id);
+                    this.state.vault.delete(id);
+                    this.state.queue.delete(id);
+                    // Remove the card from UI immediately
+                    document.getElementById(`card-${id}`)?.remove();
+                    this.updateCounters();
+                    return true;
+                }
+                console.warn("Deletion failed:", id, r.status, body?.errors);
+            } catch (e) {
+                console.error("Deletion Error:", e);
+            }
+            return false;
+        }
+
+        /**
+         * Auto mode: Load -> delete everything loaded -> Load again ...
+         * Repeats until a Load returns 0 tweets. Pressing the button again stops it.
+         */
+        /**
+         * Auto delete, two independent modes:
+         *  - 'api'    : Load via UserTweets API -> delete all -> reload ... until API returns 0
+         *  - 'screen' : Read your tweets from the X page (scrolling) -> delete -> scroll on ...
+         *               until no more of your tweets appear on screen
+         * Clicking the running mode's button again stops it.
+         */
+        async purgeAll(mode) {
+            // Click while running = Stop
+            if (this.state.isPurging) {
+                this.state.stopRequested = true;
+                this.log("Stopping...");
+                return;
+            }
+
+            const target = this.auth.endpoints['DeleteTweet'];
+            if (!target) return this.log("<span class='trt-error-text'>Delete Endpoint Missing</span>");
+
+            const isApi = mode === 'api';
+            const msg = isApi
+                ? "API AUTO DELETE\n\n" +
+                  "API로 트윗을 불러와서 전부 삭제하는 것을 Load 결과가 0개가 될 때까지 반복합니다.\n"
+                : "SCREEN AUTO DELETE\n\n" +
+                  "X 페이지(프로필 게시물 탭)를 자동으로 스크롤하며 화면에 보이는 내 트윗을 삭제합니다.\n" +
+                  "더 이상 내 트윗이 나오지 않을 때까지 반복합니다. 이 탭을 열어둔 채로 두세요.\n";
+            if (!confirm(msg + "삭제된 트윗은 복구할 수 없습니다. 진행할까요?")) return;
+
+            const buttons = {
+                api:    { el: this.get('trt-purge-api-btn'),    label: '🔁 API Auto Delete' },
+                screen: { el: this.get('trt-purge-screen-btn'), label: '🖥 Screen Auto Delete' }
+            };
+            const setRunning = (running) => {
+                this.state.isPurging = running;
+                for (const [key, b] of Object.entries(buttons)) {
+                    if (!b.el) continue;
+                    const active = running && key === mode;
+                    b.el.className = `trt-btn ${active ? 'trt-btn-stop' : 'trt-btn-purge'}`;
+                    b.el.innerText = active ? '⏹ Stop' : b.label;
+                    b.el.disabled = running && !active; // the other mode is locked while running
+                }
+                this.updateCounters();
+            };
+
+            this.state.stopRequested = false;
+            setRunning(true);
+            if (!isApi) window.scrollTo(0, 0);
+
+            let round = 0;
+            let emptyStreak = 0;
+            let finalMsg = "Auto Delete Finished";
+
+            try {
+                while (!this.state.stopRequested) {
+                    round++;
+                    // Clear only the current list; keep the Deleted counter
+                    this.state.vault.clear();
+                    this.state.queue.clear();
+
+                    if (isApi) {
+                        this.log(`Round ${round}: Loading (API)...`);
+                        const fetched = await this.fetchTweets();
+                        if (fetched === 'ratelimited') {
+                            await this.waitForRateLimit(this.state.lastLoadResponse);
+                            round--;
+                            continue;
+                        }
+                        if (!fetched) {
+                            finalMsg = "<span class='trt-error-text'>Stopped: Load Failed</span>";
+                            break;
+                        }
+                    } else {
+                        this.log(`Round ${round}: Scanning screen...`);
+                        // Collect up to ~40 per round so deletion starts without scrolling forever
+                        await this.scanScreen(true, 40);
+                    }
+                    if (this.state.stopRequested) break;
+
+                    if (this.state.vault.size === 0) {
+                        // Empty result can be transient (API sparse page / screen still loading)
+                        emptyStreak++;
+                        if (emptyStreak >= 2) {
+                            finalMsg = `✅ Done — 0 found (${this.state.deleted.size} deleted)`;
+                            break;
+                        }
+                        this.log("0 found — double-checking...");
+                        await this.sleep(3000);
+                        continue;
+                    }
+                    emptyStreak = 0;
+
+                    const ids = Array.from(this.state.vault.keys());
+                    let deletedThisRound = 0;
+                    for (let i = 0; i < ids.length; i++) {
+                        if (this.state.stopRequested) break;
+                        this.log(`Round ${round}: Deleting ${i + 1}/${ids.length} (total ${this.state.deleted.size})...`);
+                        if (await this.deleteOne(ids[i], target)) deletedThisRound++;
+                        await this.sleep(600);
+                    }
+
+                    // Safety: if nothing could be deleted this round, stop instead of looping.
+                    if (deletedThisRound === 0 && !this.state.stopRequested) {
+                        finalMsg = `<span class='trt-error-text'>Stopped: ${ids.length} item(s) could not be deleted</span>`;
+                        break;
+                    }
+
+                    await this.sleep(1500);
+                }
+                if (this.state.stopRequested) finalMsg = `Stopped by user (${this.state.deleted.size} deleted)`;
+            } finally {
+                this.state.stopRequested = false;
+                setRunning(false);
+                this.log(finalMsg);
+            }
         }
     }
 
     // Instantiate and start the tool
     new TweetRemovalTool().start();
-})();
+})();

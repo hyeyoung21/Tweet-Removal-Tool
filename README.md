@@ -1,483 +1,195 @@
-# 🐦 Tweet Removal Tool
+# 🐦 Tweet Removal Tool (자동 삭제 포크)
 
-<p align="center">
-  <strong>Delete your tweets for free, privately, locally, and on your terms.</strong>
-</p>
+X(트위터)에서 **내 트윗을 한꺼번에 삭제**하는 크롬 확장 프로그램입니다.
+X 페이지 오른쪽에 사이드바를 띄워, 트윗을 불러오고 골라서 지우거나 0개가 될 때까지 자동으로 지울 수 있습니다.
 
-A modern, **local-first Chrome extension** for reviewing and selectively deleting tweets from your X (formerly Twitter) account. There are **no external servers, no subscriptions, and no data collection**. Every action runs directly inside your browser.
+> 🍴 이 저장소는 **[iteratequickly/Tweet-Removal-Tool](https://github.com/iteratequickly/Tweet-Removal-Tool)** 을 포크해서 **자동 삭제 기능**과 몇 가지 개선을 더한 버전입니다.
+> 원본의 장점(무료, 외부 서버 없음, 브라우저 안에서만 동작)은 그대로 유지합니다. 변경점은 [원본 대비 변경점](#-원본-대비-변경점) 을 참고하세요.
 
-> **Disclaimer:** This project is not affiliated with, endorsed by, or supported by Twitter/X. It operates locally within your browser and mirrors official web requests to assist with manual tweet management.
+> ℹ️ 이 프로젝트는 X(Twitter)와 제휴하거나 X의 승인·지원을 받은 프로젝트가 아닙니다.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Downloads](https://img.shields.io/github/downloads/iteratequickly/Tweet-Removal-Tool/total.svg?label=Downloads)](https://github.com/iteratequickly/Tweet-Removal-Tool/releases)
-[![GitHub Release](https://img.shields.io/github/v/release/iteratequickly/Tweet-Removal-Tool)](https://github.com/iteratequickly/Tweet-Removal-Tool/releases)
-[![Chrome Version](https://img.shields.io/badge/Chrome-88%2B-blue)](https://www.google.com/chrome/)
-[![Platform Support](https://img.shields.io/badge/Platforms-Chrome%2C%20Edge%2C%20Brave%2C%20Opera%2C%20Vivaldi-green)](https://www.google.com/chrome/)
-
-<p align="center">
-  <img src="https://repository-images.githubusercontent.com/1132546702/51f2600e-ef7f-4389-b2c0-7ccf84c258fb" alt="Tweet Removal Tool Preview" width="800">
-</p>
+> ⚠️ **삭제한 트윗은 복구할 수 없습니다.** 필요한 트윗이 있다면 먼저 X 설정 → *계정* → *데이터 아카이브 다운로드*로 백업해 두세요.
 
 ---
 
-## ✨ Why This Tool Exists
+## 주요 기능
 
-Most tweet deletion services are either **paid**, **server-based**, or **all-or-nothing**. This tool is built for people who want full control, transparency, and privacy.
-
-**What makes it different:**
-
-- 💰 **100% free:** No limits, tiers, subscriptions, or pay-to-delete restrictions.  
-- 🔒 **Privacy first:** Operates entirely within your browser. Login tokens, tweets, and cookies never leave your computer.  
-- 🔑 **No credentials required:** Uses your existing logged-in X session. You never enter your password into the extension.  
-- 🔍 **Selective deletion:** Review tweets in a visual grid and choose exactly what to delete instead of removing everything blindly.  
-- ⚡ **No API keys:** Works immediately by mirroring official web requests. No developer account or API access is required.
-- 🎯 **User-controlled:** Review each tweet individually before deletion, unlike blind bulk deletion tools.
+- **트윗 불러오기**: 로그인한 계정의 게시물을 X API로 불러와 목록으로 보여줍니다.
+- **선택 삭제**: 체크한 트윗만 삭제합니다. `Select All`로 전체 선택도 가능합니다.
+- **From Screen**: API에 안 잡히는 트윗을 X 화면(프로필 게시물 탭)에서 직접 읽어 목록에 추가합니다.
+- **🔁 API Auto Delete**: API로 불러오기 → 전부 삭제를 결과가 0개가 될 때까지 반복합니다.
+- **🖥 Screen Auto Delete**: X 페이지를 자동으로 스크롤하며 화면에 보이는 내 트윗을 더 이상 안 나올 때까지 삭제합니다.
+- **Rate limit 자동 대기**: 요청 제한(429)에 걸리면 X가 알려주는 리셋 시각까지 기다렸다가 이어서 진행합니다.
 
 ---
 
-## 🙌 Thank You
+## 🔀 원본 대비 변경점
 
-Thanks to everyone who's downloaded and used this tool (see the badge above)! It genuinely means a lot to see people finding it useful.
-
-If the tool has helped you clean up your X history, consider:
-
-- ⭐ **Starring the repo**, since it helps others discover the project
-- 🔀 **Contributing** a PR if you'd like to help improve it
-- 📢 **Sharing it** with anyone else looking for a free, private way to manage their tweets
-
-Every bit of support helps keep this project going. Thanks again! 🐦
-
----
-
-## 🚀 Getting Started
-
-### Installation
-
-1. **Download the latest release:**
-   - Visit the [Release Page](https://github.com/iteratequickly/Tweet-Removal-Tool/releases/tag/v1.0)
-   - Download the `Tweet-Removal-Tool-v1.0.zip` file
-   - Extract the ZIP file to a permanent location (do not delete this folder!)
-
-2. **Load into Chrome:**
-   - Open Chrome and navigate to `chrome://extensions/`
-   - Enable **Developer mode** (toggle in top right corner)
-   - Click **Load unpacked**
-   - Select the extracted folder containing `manifest.json`
-
-### How to Use
-
-1. Log in to your account at [https://x.com](https://x.com).  
-2. Click the extension icon to launch the sidebar.  
-3. Click **Initialise Search** to fetch your recent activity.  
-4. Review your tweets, select the items you wish to delete, and confirm.  
+| 구분 | 원본 | 이 포크 |
+|---|---|---|
+| 자동 삭제 | 없음 (선택 삭제만) | **🔁 API Auto Delete**, **🖥 Screen Auto Delete** 추가 |
+| 화면에서 불러오기 | 없음 | **From Screen** 버튼 추가 (API에 안 잡히는 트윗 대응) |
+| 불러오기 | 첫 페이지만 조회 | 빈 페이지가 오면 다음 페이지를 따라가며 조회 |
+| 응답 해석 | 일반 트윗만 인식 | 스레드(이어 쓴 트윗), 제한된 트윗, 장문 트윗도 인식 |
+| 요청 제한(429) | 실패한 항목을 그냥 건너뜀 | 리셋 시각까지 기다렸다가 재시도 |
+| 삭제 실패 감지 | HTTP 상태만 확인 | GraphQL 응답 본문의 오류까지 확인 |
+| 트윗 본문 표시 | HTML 그대로 삽입 | 이스케이프 처리 |
+| 디버그 | - | 콘솔에 `[TRT]` 로그 출력 |
 
 ---
 
-## 🔐 Privacy & Security
+## 설치 방법 (개발자 모드)
 
-### What data does this tool collect?
-**None.** The tool operates entirely within your browser with:
-- No external server communication
-- No data logging or analytics
-- No credential storage
-- No persistent data (all cleared when sidebar closes)
+Chrome 웹 스토어에 올라가 있지 않으므로, ZIP으로 받아서 **개발자 모드**로 설치합니다.
+Chrome, Edge, Whale, Brave 등 크로미움 기반 브라우저에서 동작합니다.
 
-### How does authentication work?
-The tool reuses your existing X.com browser session. It reads:
-- The `twid` cookie for your User ID
-- The `ct0` cookie for CSRF tokens
-- The Bearer token from the loaded JavaScript on X.com
+### 1. ZIP 파일 다운로드
 
-These tokens are never transmitted outside your browser or stored persistently.
+1. 이 저장소 페이지 오른쪽 위의 초록색 **`<> Code`** 버튼을 누릅니다.
+2. **`Download ZIP`** 을 눌러 저장합니다.
+3. 받은 ZIP 파일의 **압축을 풉니다.**
+   (ZIP 상태로는 설치할 수 없습니다. 반드시 압축을 풀어 주세요.)
 
-### Can I audit the code?
-Yes! This is open-source software. Review the complete source code in this repository before installing.
+압축을 푼 폴더 안에 아래 파일들이 바로 보여야 합니다.
 
----
-
-## 🌍 Browser Compatibility
-
-| Browser          | Supported | Notes                               |
-|------------------|-----------|-------------------------------------|
-| Google Chrome    | ✅ Yes     | Version 88 and above                |
-| Microsoft Edge   | ✅ Yes     | Chromium-based versions             |
-| Brave            | ✅ Yes     | Shields may need to allow X scripts |
-| Opera / Vivaldi  | ✅ Yes     | Chromium-based versions             |
-| Mobile Browsers  | ❌ No      | Extensions are not supported        |
-
----
-
-## ❓ Frequently Asked Questions
-
-<details>
-<summary><strong>Why can I only see 40 tweets at a time?</strong></summary>
-
-<br>
-
-The tool fetches tweets using the same GraphQL API that X.com uses, which returns paginated results. Click "Load More" to fetch additional batches. Note that the X API has limitations on how far back you can retrieve tweets in a single session.
-
-</details>
-
-<details>
-<summary><strong>Will this tool get my account suspended?</strong></summary>
-
-<br>
-
-The tool mimics normal user interactions and includes rate limiting (600ms between deletions). However, bulk deletions may still trigger automatic detection systems on X. Use responsibly and within the Terms of Service of X.
-
-</details>
-
-<details>
-<summary><strong>Can I recover deleted tweets?</strong></summary>
-
-<br>
-
-No. Once tweets are deleted through this tool, they cannot be recovered. Always review your selections carefully before confirming deletion.
-
-</details>
-
-<details>
-<summary><strong>Why is my handle not being detected?</strong></summary>
-
-<br>
-
-The tool uses multiple fallback methods to detect your handle. If it shows "Unknown", the tool will still function using your User ID. Ensure you are logged into X.com before launching the extension.
-
-</details>
-
-<details>
-<summary><strong>Does this work with protected or private accounts?</strong></summary>
-
-<br>
-
-Yes, the tool works with any account type as long as you are logged in. It only accesses tweets that belong to your authenticated session.
-
-</details>
-
----
-
-### ⚠️ Limitations & Constraints
-
-- **Session-dependent:** Requires active X.com authentication
-- **API pagination:** Cannot access tweets beyond GraphQL response limits
-- **Rate limits:** 600ms delay may not prevent all rate-limit errors
-- **GraphQL volatility:** X.com may change query structures
-- **No undo:** Deleted tweets cannot be recovered through the tool
-
----
-
-## 🛠️ Technical Background (For Developers)
-
-```mermaid
-flowchart TD
-    Start([Browser Extension Loads]) --> IIFE{Sidebar Already<br/>Exists?}
-    IIFE -->|Yes| Stop([Abort: Prevent Duplicate])
-    IIFE -->|No| Init[Initialise TweetRemovalTool]
-    
-    Init --> Identity[Identity Resolution]
-    Identity --> ID1[Cookie: twid to UID]
-    Identity --> ID2[Redux: __INITIAL_STATE__ to Handle]
-    Identity --> ID3[DOM: Profile Link to Handle]
-    
-    Init --> Discovery[GraphQL Discovery]
-    Discovery --> D1[Scan Inline Scripts]
-    Discovery --> D2[Fetch External Bundles]
-    D1 --> Extract[Extract Bearer Token<br/>& Operation IDs]
-    D2 --> Extract
-    Extract --> Registry[(Endpoint Registry)]
-    
-    Registry --> UI[Build & Inject Sidebar UI]
-    UI --> Ready[System Ready]
-    
-    Ready --> Fetch[User: Initialise Search]
-    Fetch --> API1[GET UserTweets GraphQL]
-    API1 --> Parse[Recursive JSON Walker]
-    Parse --> Filter{Tweet Owned<br/>by User?}
-    Filter -->|No| Skip[Skip Entry]
-    Filter -->|Yes| Store[(Add to Vault Map)]
-    Store --> Render[Render Tweet Cards]
-    
-    Render --> Select[User: Select Items]
-    Select --> Queue[(Update Queue Set)]
-    Queue --> Delete[User: Delete Selected]
-    
-    Delete --> Confirm{Confirm<br/>Deletion?}
-    Confirm -->|No| Render
-    Confirm -->|Yes| Loop[Sequential Processing]
-    Loop --> API2[POST DeleteTweet Mutation]
-    API2 --> Wait[600ms Rate Limit Delay]
-    Wait --> Update[Update UI & State]
-    Update --> Next{More Items?}
-    Next -->|Yes| Loop
-    Next -->|No| Done([Batch Complete])
-    
-    style Init fill:#1d9bf0,color:#fff
-    style Discovery fill:#00ba7c,color:#fff
-    style Parse fill:#f4212e,color:#fff
-    style Loop fill:#f4212e,color:#fff
+```
+TweetRemovalTool/
+├── manifest.json
+├── background.js
+├── tweet_removal_tool.js
+├── icon16.png
+├── icon48.png
+└── icon128.png
 ```
 
-### Architecture Deep Dive
+> 💡 압축을 풀면 `TweetRemovalTool-main/TweetRemovalTool-main/manifest.json` 처럼 폴더가 한 겹 더 생기는 경우가 있습니다. 나중에 폴더를 선택할 때 **`manifest.json`이 바로 들어 있는 폴더**를 골라야 합니다.
 
-<details>
-<summary><strong>1. Isolation & Injection Strategy</strong></summary>
+압축을 푼 폴더는 지우지 말고 적당한 곳(예: `문서` 폴더)에 그대로 두세요. 폴더를 지우거나 옮기면 확장 프로그램이 작동하지 않습니다.
 
-<br>
+### 2. 개발자 모드로 확장 프로그램 올리기
 
-The tool runs inside an **IIFE (Immediately Invoked Function Expression)** to prevent variable pollution and avoid conflicts with the code on X.com.
-```javascript
-(function() {
-    // Prevent multiple instances of the sidebar from being added
-    if (document.getElementById('trt-sidebar')) return;
-})();
-```
+1. 주소창에 `chrome://extensions` 를 입력해 이동합니다.
+   - Edge는 `edge://extensions`, Whale은 `whale://extensions`
+2. 오른쪽 위의 **개발자 모드** 스위치를 켭니다.
+3. 왼쪽 위에 생긴 **압축해제된 확장 프로그램을 로드합니다** 버튼을 누릅니다.
+4. 1단계에서 압축을 푼 폴더(`manifest.json`이 들어 있는 폴더)를 선택합니다.
+5. 목록에 **TweetRemovalTool** 이 나타나면 설치 완료입니다.
 
-</details>
+### 3. 툴바에 고정하기 (선택)
 
-<details>
-<summary><strong>2. Identity Resolution Pipeline</strong></summary>
-
-<br>
-
-Three-tier fallback system from the `resolveIdentity()` method:
-```javascript
-resolveIdentity() {
-    let uid = document.cookie.match(/twid=u%3D(\d+)/)?.[1];
-    let handle = "Unknown";
-    try {
-        // Check X's internal state object first
-        if (window.__INITIAL_STATE__?.session?.user_id === uid) {
-            const entities = window.__INITIAL_STATE__.entities?.users?.entities;
-            if (entities && entities[uid]) {
-                handle = entities[uid].screen_name;
-            }
-        }
-        // Fallback: Scrape from the UI sidebar profile link
-        if (handle === "Unknown") {
-            const profileLink = document.querySelector('a[data-testid="AppTabBar_Profile_Link"]');
-            if (profileLink) {
-                handle = profileLink.getAttribute('href').replace('/', '');
-            }
-        }
-    } catch (e) { console.warn("TRT Identity Resolve Error:", e); }
-    return { uid, handle };
-}
-```
-
-</details>
-
-<details>
-<summary><strong>3. Dynamic GraphQL Endpoint Discovery</strong></summary>
-
-<br>
-
-The `GraphQLEndpointResolution` class extracts endpoints from the JavaScript on X.com:
-```javascript
-class GraphQLEndpointResolution {
-    constructor() {
-        this.registry = new Map();
-        this.bearer = null;
-        this.patterns = {
-            // Regex to find the hardcoded Bearer token in X's source code
-            bearer: /"Bearer\s([a-zA-Z0-9%._-]+)"/,
-            // Regex to find GraphQL operation definitions (ID + Name)
-            operation: /queryId:"([a-zA-Z0-9_-]+)",operationName:"([a-zA-Z0-9_-]+)"/g
-        };
-    }
-
-    async discover() {
-        const scripts = Array.from(document.querySelectorAll('script'));
-        const external = scripts.filter(s => s.src).map(s => s.src);
-        const inline = scripts.filter(s => !s.src).map(s => s.textContent);
-
-        // Scan inline scripts first (faster)
-        inline.forEach(text => this.scanText(text));
-
-        // Prioritise the 'main' bundle where endpoints are usually defined
-        const sortedExternal = external.sort((a, b) => a.includes('main.') ? -1 : 0);
-
-        for (const url of sortedExternal) {
-            // Exit early if we found our key endpoints and token
-            if (this.registry.has('DeleteTweet') && this.registry.has('UserTweets') && this.bearer) break;
-            try {
-                const response = await fetch(url);
-                const text = await response.text();
-                this.scanText(text);
-            } catch (e) { /* Silent fail for cross-origin or network issues */ }
-        }
-        return { bearer: this.bearer, endpoints: Object.fromEntries(this.registry) };
-    }
-}
-```
-
-The `scanText` method extracts tokens and operations:
-```javascript
-scanText(text) {
-    if (!this.bearer) {
-        const bMatch = text.match(this.patterns.bearer);
-        if (bMatch) this.bearer = `Bearer ${bMatch[1]}`;
-    }
-    let match;
-    this.patterns.operation.lastIndex = 0; // Reset regex state
-    while ((match = this.patterns.operation.exec(text)) !== null) {
-        this.registry.set(match[2], {
-            queryId: match[1],
-            endpoint: `/i/api/graphql/${match[1]}/${match[2]}`
-        });
-    }
-}
-```
-
-</details>
-
-<details>
-<summary><strong>4. Recursive JSON Traversal</strong></summary>
-
-<br>
-
-The `parseResponse` method uses a recursive, schema-agnostic walker to navigate X's volatile GraphQL structures:
-```javascript
-parseResponse(obj) {
-    const walker = (o) => {
-        if (!o || typeof o !== 'object') return;
-
-        // Identification logic for a tweet entry
-        if (o.entryId && o.content?.itemContent?.tweet_results?.result) {
-            const result = o.content.itemContent.tweet_results.result;
-            // Handle 'legacy' nested structure or direct result
-            const tweetData = result.legacy || result;
-            const userId = tweetData.user_id_str || result.core?.user_results?.result?.rest_id;
-            const tweetId = result.rest_id || result.id_str;
-
-            // Verify ownership: only add if the tweet belongs to the authenticated user
-            if (tweetId && tweetData.full_text && userId === this.auth.uid) {
-                this.state.vault.set(tweetId, {
-                    id: tweetId,
-                    text: tweetData.full_text,
-                    date: tweetData.created_at,
-                    timestamp: tweetData.created_at ? new Date(tweetData.created_at).getTime() : 0
-                });
-            }
-            return;
-        }
-
-        // Recurse into all keys
-        Object.keys(o).forEach(k => walker(o[k]));
-    };
-    
-    walker(obj);
-    this.renderList();
-}
-```
-
-</details>
-
-<details>
-<summary><strong>5. State Management Architecture</strong></summary>
-
-<br>
-
-From the `TweetRemovalTool` constructor:
-```javascript
-// Application state
-this.state = { 
-    vault: new Map(),     // Retrieved tweets (ID to Data)
-    queue: new Set(),     // IDs selected for deletion
-    deleted: new Set(),   // IDs successfully deleted
-    isFetching: false     // Guard against concurrent fetch calls
-};
-```
-
-</details>
-
-<details>
-<summary><strong>6. Rate-Limited Deletion Engine</strong></summary>
-
-<br>
-
-The `executeDeletion` method processes deletions sequentially:
-```javascript
-async executeDeletion() {
-    const target = this.auth.endpoints['DeleteTweet'];
-    if (!target) return this.log("<span class='trt-error-text'>Delete Endpoint Missing</span>");
-    
-    // Final user confirmation
-    if (!confirm(`Confirm: Delete ${this.state.queue.size} posts permanently?`)) return;
-    
-    for (let id of Array.from(this.state.queue)) {
-        this.log(`Executing deletion: ${id}...`);
-        try {
-            const r = await fetch(`https://x.com${target.endpoint}`, {
-                method: 'POST',
-                headers: { 
-                    "authorization": this.auth.bearer, 
-                    "x-csrf-token": this.auth.csrf, 
-                    "content-type": "application/json" 
-                },
-                body: JSON.stringify({ 
-                    variables: { tweet_id: id, dark_request: false }, 
-                    queryId: target.queryId 
-                })
-            });
-            
-            if (r.ok) {
-                this.state.deleted.add(id);
-                this.state.vault.delete(id);
-                this.state.queue.delete(id);
-                // Remove the card from UI immediately
-                document.getElementById(`card-${id}`)?.remove();
-                this.updateCounters();
-            }
-        } catch (e) {
-            console.error("Deletion Error:", e);
-        }
-        // Rate-limiting safety: 600ms delay between operations
-        await new Promise(res => setTimeout(res, 600));
-    }
-    this.log("Batch Complete");
-}
-```
-
-</details>
-
-<details>
-<summary><strong>7. Authentication Context Reuse</strong></summary>
-
-<br>
-
-From the constructor, authentication state is built from the session:
-```javascript
-// Authentication state extracted from current session
-this.auth = {
-    bearer: null,
-    // Reuse CSRF token from cookies (required for POST requests)
-    csrf: document.cookie.match(/ct0=([^;]+)/)?.[1],
-    uid: identity.uid,
-    handle: identity.handle,
-    endpoints: {}
-};
-```
-
-</details>
+브라우저 오른쪽 위의 퍼즐 모양 🧩 아이콘을 누르고, **TweetRemovalTool** 옆의 핀 📌 을 눌러 고정하면 쓰기 편합니다.
 
 ---
 
-## ⚖️ Licence and Terms
+## 사용 방법
 
-### Terms of Service
-Bulk or repetitive actions may conflict with platform Terms of Service regarding automation. Users are solely responsible for compliance with applicable terms and rate limits.  
+1. [x.com](https://x.com) 에 **로그인**한 뒤, **내 프로필 페이지**(`x.com/내아이디`)로 이동합니다.
+   개별 트윗 페이지보다 프로필 페이지에서 실행해야 필요한 API 정보를 잘 찾습니다.
+2. 툴바의 **TweetRemovalTool 아이콘**을 누르면 오른쪽에 사이드바가 열립니다.
+3. Account Handle / UID가 자동으로 채워지면 **Initialise Search** 를 누릅니다.
+4. 원하는 방식으로 삭제합니다.
 
-### Disclaimer
-This software is provided "as-is", without warranty of any kind. The authors are not responsible for account restrictions, suspensions, or data loss resulting from the use of this tool.  
+| 버튼 | 설명 |
+|---|---|
+| `Select All` | 불러온 트윗 전체 선택 / 해제 |
+| `Load More` | 목록을 비우고 API로 다시 불러오기 |
+| `From Screen` | X 화면을 스크롤하며 보이는 내 트윗을 목록에 추가 |
+| `↑ Top` | 사이드바 목록 맨 위로 |
+| `Delete Selected Items` | 체크한 트윗만 삭제 |
+| `🔁 API Auto Delete` | API 결과가 0개가 될 때까지 자동 삭제 |
+| `🖥 Screen Auto Delete` | 화면에 내 트윗이 안 나올 때까지 스크롤하며 자동 삭제 |
+| `⏹ Stop` | 자동 삭제 실행 중 같은 자리에 나타남. 누르면 현재 항목까지만 하고 멈춤 |
 
-### Licence
-This project is licensed under the **MIT Licence**. See the [LICENSE](LICENSE) file for details.
+### 어떤 자동 삭제를 써야 하나요?
+
+- 먼저 **🔁 API Auto Delete** 를 돌리세요. 빠르고 화면 상태와 무관합니다.
+- API가 0개라고 하는데 프로필에 트윗이 남아 보이면 **🖥 Screen Auto Delete** 를 쓰세요.
+  이때는 **프로필의 게시물 탭을 연 상태로** 실행하고, 끝날 때까지 그 탭을 그대로 두세요.
+- Screen 모드가 끝나면 **페이지를 새로고침**하고 한 번 더 돌려서 남은 게 없는지 확인하는 것을 추천합니다.
+  (새로고침하면 사이드바가 닫히니 아이콘을 다시 눌러 여세요.)
 
 ---
 
-## 🙏 Acknowledgements
+## 알아두세요
 
-Inspired by the research and tools developed by:
+- **답글은 API 불러오기에 포함되지 않습니다.** API 모드는 프로필의 *게시물* 탭과 같은 목록만 가져옵니다.
+- **다른 사람 글을 재게시(리트윗)한 것은 지우지 않습니다.** 재게시 취소는 별도 기능입니다.
+- **속도 제한이 있습니다.** 트윗이 많으면 X의 요청 제한 때문에 중간중간 몇 분씩 기다릴 수 있습니다. 상태줄에 남은 대기 시간이 표시되며, 자동으로 이어서 진행합니다.
+- 자동 삭제가 도는 동안 **X 탭을 닫거나 새로고침하면 멈춥니다.**
+- 이 도구는 X 웹사이트가 내부적으로 쓰는 API를 이용합니다. X가 사이트를 업데이트하면 동작이 바뀌거나 멈출 수 있습니다.
+- 자동화 도구 사용은 X 이용약관과 관련될 수 있습니다. **사용에 따른 책임은 사용자 본인에게 있습니다.**
 
-- [DeleteTweets by Lyfhael](https://github.com/Lyfhael/DeleteTweets)  
+---
+
+## 문제 해결
+
+| 증상 | 해결 방법 |
+|---|---|
+| 아이콘을 눌러도 아무 반응이 없음 | x.com 또는 twitter.com 페이지인지 확인하세요. 다른 사이트에서는 동작하지 않습니다. |
+| `Registry Error` / `Delete Endpoint Missing` | 내 프로필 페이지로 이동해 **새로고침** 후 다시 실행하세요. |
+| `Fetch Failed: HTTP 400` | X가 API 형식을 바꾼 경우입니다. 이슈에 콘솔 로그와 함께 알려주세요. |
+| API로는 0개인데 프로필엔 트윗이 보임 | `From Screen` 또는 `🖥 Screen Auto Delete` 를 사용하세요. |
+| `Rate limited — waiting …s` | 정상입니다. 시간이 지나면 자동으로 이어집니다. |
+| 설치 시 `매니페스트 파일이 없거나 읽을 수 없습니다` | 폴더를 잘못 골랐습니다. `manifest.json`이 **바로** 들어 있는 폴더를 선택하세요. |
+| 설치 시 아이콘 파일 오류 | `icon16.png`, `icon48.png`, `icon128.png` 가 폴더에 있는지 확인하세요. |
+
+자세한 동작 기록은 X 페이지에서 `F12` → **Console** 탭의 `[TRT]` 로 시작하는 로그에서 확인할 수 있습니다.
+이슈를 올릴 때 이 로그를 함께 첨부해 주시면 원인을 찾기 쉽습니다.
+
+---
+
+## 업데이트 방법
+
+1. 새 버전 ZIP을 받아 압축을 풀고, **기존 폴더의 파일을 덮어씁니다.**
+2. `chrome://extensions` 에서 TweetRemovalTool 카드의 **새로고침(↻)** 버튼을 누릅니다.
+3. 열려 있던 X 탭도 새로고침합니다.
+
+## 삭제(제거) 방법
+
+`chrome://extensions` 에서 TweetRemovalTool 카드의 **삭제** 버튼을 누른 뒤, 압축을 풀었던 폴더를 지우면 됩니다.
+
+---
+
+## 파일 구성
+
+| 파일 | 역할 |
+|---|---|
+| `manifest.json` | 확장 프로그램 설정 (Manifest V3) |
+| `background.js` | 아이콘 클릭 시 X 페이지에 도구를 삽입 |
+| `tweet_removal_tool.js` | 사이드바 UI, 트윗 불러오기·삭제 로직 |
+| `icon*.png` | 확장 프로그램 아이콘 |
+
+### 사용 권한
+
+| 권한 | 용도 |
+|---|---|
+| `activeTab`, `scripting` | 아이콘을 누른 X 탭에 도구를 띄우기 위해 |
+| `storage` | 원본 manifest에 선언된 권한 (현재 데이터를 영구 저장하지 않음) |
+| `https://x.com/*`, `https://twitter.com/*` | X 사이트에서만 동작 |
+
+이 확장 프로그램은 **외부 서버로 어떤 데이터도 보내지 않습니다.** 모든 요청은 사용자의 브라우저에서 X로 직접 전송됩니다.
+
+---
+
+## ⚖️ 라이선스 및 이용 조건
+
+### 이용약관
+대량 또는 반복적인 작업은 자동화에 관한 플랫폼(X) 이용약관에 저촉될 수 있습니다. 관련 약관과 요청 제한을 지키는 책임은 전적으로 사용자에게 있습니다.
+
+### 면책 조항
+이 소프트웨어는 어떠한 보증도 없이 "있는 그대로(as-is)" 제공됩니다. 원작자와 포크 작성자는 이 도구 사용으로 인한 계정 제한·정지·데이터 손실에 대해 책임지지 않습니다.
+
+### 라이선스
+이 프로젝트는 원본과 동일하게 **MIT 라이선스**를 따릅니다. 자세한 내용은 [LICENSE](LICENSE) 파일을 참고하세요.
+원본의 저작권 표시는 LICENSE 파일에 그대로 유지됩니다.
+
+---
+
+## 🙏 감사의 말
+
+- 원본 프로젝트: [Tweet-Removal-Tool by iteratequickly](https://github.com/iteratequickly/Tweet-Removal-Tool)
+
+원본 프로젝트가 참고한 연구와 도구:
+
+- [DeleteTweets by Lyfhael](https://github.com/Lyfhael/DeleteTweets)
 - [tweetXer by lucahammer](https://github.com/lucahammer/tweetXer)
