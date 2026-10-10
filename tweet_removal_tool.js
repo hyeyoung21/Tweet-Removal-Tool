@@ -77,6 +77,24 @@
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
         .trt-pulse { color: #1d9bf0; animation: pulse 2s infinite; font-weight: bold; }
         .trt-error-text { color: #f4212e; font-weight: bold; }
+        .trt-archive { border-bottom: 1px solid #2f3336; padding: 0 24px; }
+        .trt-archive summary { cursor: pointer; padding: 12px 0; font-size: 13px; font-weight: 700; color: #e7e9ea; list-style: none; }
+        .trt-archive summary::-webkit-details-marker { display: none; }
+        .trt-archive summary::before { content: '▸ '; color: #1d9bf0; }
+        .trt-archive[open] summary::before { content: '▾ '; }
+        .trt-archive-body { padding-bottom: 16px; display: flex; flex-direction: column; gap: 10px; }
+        .trt-help { font-size: 11px; color: #71767b; line-height: 1.5; }
+        .trt-help code { color: #e7e9ea; background: #16181c; padding: 1px 4px; border-radius: 4px; }
+        .trt-file { font-size: 12px; color: #e7e9ea; }
+        .trt-row { display: flex; gap: 8px; align-items: center; font-size: 12px; color: #e7e9ea; flex-wrap: wrap; }
+        .trt-row input[type=date] { background: #16181c; border: 1px solid #2f3336; color: #fff; border-radius: 6px; padding: 4px 6px; color-scheme: dark; }
+        .trt-progress { height: 6px; background: #2f3336; border-radius: 99px; overflow: hidden; }
+        .trt-progress > div { height: 100%; width: 0%; background: #1d9bf0; transition: width 0.3s; }
+        .trt-filter-row label { white-space: nowrap; cursor: pointer; }
+        .trt-filter-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; font-size: 12px; color: #e7e9ea; }
+        .trt-filter-row input[type=number] { width: 64px; background: #16181c; border: 1px solid #2f3336; color: #fff; border-radius: 6px; padding: 4px 6px; }
+        .trt-card-stats { font-size: 10px; color: #71767b; margin-bottom: 6px; }
+        #trt-archive-info { font-size: 12px; color: #e7e9ea; font-family: ui-monospace, monospace; }
     </style>
     <div class="trt-header">
         <div class="trt-title-row">
@@ -85,6 +103,55 @@
         </div>
         <div id="trt-status">System Standby</div>
     </div>
+    <!-- Archive Delete: delete by IDs from X's downloaded data archive -->
+    <details class="trt-archive" id="trt-archive-ui">
+        <summary>🗄 Archive Delete (데이터 아카이브로 삭제)</summary>
+        <div class="trt-archive-body">
+            <div class="trt-help">
+                X 설정 → 내 계정 → <b>데이터 아카이브 다운로드</b>로 받은 ZIP을 풀고,
+                <code>data/tweets.js</code> 또는 <code>data/tweet-headers.js</code>를 선택하세요.
+                (<code>tweets-part1.js</code>처럼 나뉜 파일은 여러 개 같이 선택)<br>
+                API로 안 불러와지는 오래된 트윗까지 ID로 직접 삭제합니다.
+            </div>
+            <input type="file" id="trt-archive-file" class="trt-file" accept=".js,.json" multiple>
+            <div class="trt-row">
+                <label><input type="checkbox" id="trt-archive-rt" checked> 리트윗 포함</label>
+            </div>
+            <div class="trt-row">
+                기간: <input type="date" id="trt-archive-from"> ~ <input type="date" id="trt-archive-to">
+                <span class="trt-help">(비우면 전체)</span>
+            </div>
+            <div id="trt-archive-info">파일을 선택하세요</div>
+            <div class="trt-progress"><div id="trt-archive-bar"></div></div>
+            <div style="display:flex; gap:6px;">
+                <button class="trt-btn trt-btn-purge" id="trt-archive-btn" style="margin-top:0" disabled>🗄 Archive Delete</button>
+                <button class="trt-btn trt-btn-outline" id="trt-archive-reset" style="width:auto; padding:8px 12px;" title="저장된 진행 기록을 지우고 처음부터">진행 초기화</button>
+            </div>
+        </div>
+    </details>
+    <!-- Filter: applies to API / Screen / Archive deletion -->
+    <details class="trt-archive" id="trt-filter-ui">
+        <summary>🔎 Filter <span id="trt-filter-badge" class="trt-help"></span></summary>
+        <div class="trt-archive-body">
+            <div class="trt-help">
+                체크한 조건에 맞는 트윗은 <b>삭제하지 않고 남깁니다.</b><br>
+                정보를 알 수 없는 트윗도 안전을 위해 남깁니다.
+            </div>
+            <div class="trt-filter-row">
+                <span>❤ 마음 <input type="number" id="trt-f-likes-n" min="0" value="10"> 개 이상</span>
+                <label><input type="checkbox" id="trt-f-likes"> 제외</label>
+            </div>
+            <div class="trt-filter-row">
+                <span>🔁 리트윗 <input type="number" id="trt-f-rts-n" min="0" value="10"> 개 이상</span>
+                <label><input type="checkbox" id="trt-f-rts"> 제외</label>
+            </div>
+            <div class="trt-filter-row">
+                <span>🔖 내가 북마크한 트윗</span>
+                <label><input type="checkbox" id="trt-f-bm"> 제외</label>
+            </div>
+            <div class="trt-help">※ 아카이브 파일에는 북마크 정보가 없어서, 북마크 제외를 켜면 아카이브 삭제는 모두 남깁니다. 마음·리트윗 수는 아카이브를 받은 시점 기준입니다.</div>
+        </div>
+    </details>
     <div class="trt-content">
         <div class="trt-content-inner">
             <!-- Setup View: Account Identification -->
@@ -226,6 +293,11 @@
                 isPurging: false,     // Auto "delete until 0" mode running
                 stopRequested: false, // User pressed Stop during auto mode
                 nextCursor: null,     // Bottom cursor of the last loaded page
+                archive: [],          // [{id, date, isRT}] parsed from archive files
+                archiveDone: new Set(), // IDs already processed (persisted per account)
+                archiveRunning: false,
+                filteredOut: new Set(), // IDs skipped by the filter (kept)
+                screenSeen: new Set(),  // IDs seen on screen in the current scan session
                 lastLoadResponse: null
             };
         }
@@ -289,6 +361,7 @@
             this.state.vault.clear();
             this.state.queue.clear();
             this.state.deleted.clear();
+            this.state.filteredOut.clear();
             const itemsList = this.get('trt-list-items');
             if (itemsList) itemsList.innerHTML = '';
         }
@@ -308,11 +381,27 @@
             this.get('trt-delete-btn').onclick = () => this.executeDeletion();
             this.get('trt-purge-api-btn').onclick = () => this.purgeAll('api');
             this.get('trt-purge-screen-btn').onclick = () => this.purgeAll('screen');
+            this.get('trt-archive-file').onchange = (e) => this.loadArchive(e.target.files);
+            this.get('trt-filter-ui').addEventListener('change', () => {
+                this.updateFilterBadge();
+                if (this.state.archive.length) this.updateArchiveInfo();
+            });
+            this.get('trt-archive-btn').onclick = () => this.archiveDelete();
+            ['trt-archive-rt', 'trt-archive-from', 'trt-archive-to'].forEach(id => {
+                this.get(id).onchange = () => this.updateArchiveInfo();
+            });
+            this.get('trt-archive-reset').onclick = async () => {
+                if (this.state.isPurging) return;
+                if (!confirm("아카이브 진행 기록을 지울까요? (이미 삭제된 트윗은 다시 시도해도 '이미 없음'으로 처리됩니다)")) return;
+                this.state.archiveDone.clear();
+                await this.saveArchiveProgress();
+                this.updateArchiveInfo();
+            };
             this.get('trt-close-btn').onclick = () => { this.flushState(); panel.remove(); };
             this.get('trt-select-all-btn').onclick = () => this.toggleSelectAll();
             this.get('trt-screen-btn').onclick = async () => {
                 this.get('trt-screen-btn').disabled = true;
-                try { await this.scanScreen(true); } finally { this.get('trt-screen-btn').disabled = this.state.isPurging; }
+                try { this.state.screenSeen.clear(); await this.scanScreen(true); } finally { this.get('trt-screen-btn').disabled = this.state.isPurging; }
             };
             this.get('trt-top-btn').onclick = () => {
                 const container = document.querySelector('.trt-content');
@@ -337,12 +426,12 @@
          * tombstones of recently deleted tweets) even though older tweets exist.
          * So if a page yields nothing, follow the bottom cursor a few pages deeper.
          */
-        async fetchTweets(maxPages = 15) {
+        async fetchTweets(maxPages = 15, startCursor = null) {
             if (this.state.isFetching || !this.auth.bearer || !this.auth.uid) return false;
             this.state.isFetching = true;
             this.log(`Scanning API for @${this.auth.handle}...`);
 
-            let cursor = null;
+            let cursor = startCursor;
             try {
                 for (let page = 1; page <= maxPages; page++) {
                     const res = await this.fetchPage(cursor);
@@ -355,7 +444,8 @@
                     this.log(`Page ${page} empty — checking older page...`);
                     await this.sleep(800);
                 }
-                this.log(this.state.vault.size ? "Scan Complete" : "Scan Complete — 0 found (see console)");
+                const kept = this.state.filteredOut.size ? ` · ${this.state.filteredOut.size} kept by filter` : '';
+                this.log((this.state.vault.size ? "Scan Complete" : "Scan Complete — 0 found") + kept);
                 return true;
             } finally {
                 this.state.isFetching = false;
@@ -435,11 +525,19 @@
 
                 // Verify ownership: only add if the tweet belongs to the authenticated user
                 if (tweetId && String(userId) === String(this.auth.uid)) {
+                    if (this.state.deleted.has(tweetId)) return;
+                    const meta = {
+                        likes: legacy.favorite_count ?? null,
+                        rts: legacy.retweet_count ?? null,
+                        bookmarked: typeof legacy.bookmarked === 'boolean' ? legacy.bookmarked : null
+                    };
+                    if (!this.passesFilter(meta)) { this.state.filteredOut.add(tweetId); return; }
                     this.state.vault.set(tweetId, {
                         id: tweetId,
                         text,
                         date: legacy.created_at,
-                        timestamp: legacy.created_at ? new Date(legacy.created_at).getTime() : 0
+                        timestamp: legacy.created_at ? new Date(legacy.created_at).getTime() : 0,
+                        ...meta
                     });
                 }
             };
@@ -461,7 +559,7 @@
             };
 
             walker(obj);
-            console.log(`[TRT] tweet objects in response: ${seen}, kept (owned by ${this.auth.uid}): ${this.state.vault.size}, next cursor: ${this.state.nextCursor ? 'yes' : 'none'}`);
+            console.log(`[TRT] tweet objects in response: ${seen}, kept (owned by ${this.auth.uid}): ${this.state.vault.size}, skipped by filter (total): ${this.state.filteredOut.size}, next cursor: ${this.state.nextCursor ? 'yes' : 'none'}`);
             this.renderList();
         }
 
@@ -496,6 +594,7 @@
                         <div class="trt-card-date-container">
                         <div class="trt-card-date">${formattedDateTime}</div>
                         </div>
+                        <div class="trt-card-stats">❤ ${item.likes ?? '?'} · 🔁 ${item.rts ?? '?'}${item.bookmarked ? ' · 🔖' : ''}</div>
                         <div class="trt-card-body">${this.escape(item.text)}</div>
                     </div>
                     <a href="https://x.com/i/status/${item.id}" target="_blank" class="trt-view-btn">View Live</a>
@@ -528,6 +627,8 @@
             if (del) del.innerText = this.state.deleted.size;
             
             const purging = this.state.isPurging;
+            const archBtn = this.get('trt-archive-btn');
+            if (archBtn && !this.state.archiveRunning) archBtn.disabled = purging || this.state.archive.length === 0;
             ['trt-load-more', 'trt-select-all-btn', 'trt-screen-btn'].forEach(id => {
                 const b = this.get(id);
                 if (b) b.disabled = purging;
@@ -588,6 +689,7 @@
             const handle = (this.auth.handle || '').replace(/^@/, '').toLowerCase();
             if (!handle) { this.log("<span class='trt-error-text'>Handle unknown</span>"); return 0; }
 
+            let newlySeen = 0;
             const collect = () => {
                 let added = 0;
                 document.querySelectorAll('article[data-testid="tweet"]').forEach(article => {
@@ -596,13 +698,34 @@
                     const m = timeLink?.getAttribute('href')?.match(/^\/([^/]+)\/status\/(\d+)/);
                     if (!m || m[1].toLowerCase() !== handle) return;
                     const id = m[2];
+                    if (this.state.screenSeen.has(id)) return;
+                    this.state.screenSeen.add(id);
+                    newlySeen++;
                     if (this.state.deleted.has(id) || this.state.vault.has(id)) return;
+
+                    // Counts come from the action buttons' aria-label (exact numbers, any language)
+                    const countOf = (ids) => {
+                        const b = article.querySelector(ids.map(t => `[data-testid="${t}"]`).join(','));
+                        if (!b) return null;
+                        const num = (b.getAttribute('aria-label') || '').match(/\d[\d,.]*/);
+                        return num ? parseInt(num[0].replace(/[,.]/g, ''), 10) : 0;
+                    };
+                    const bmOn = article.querySelector('[data-testid="removeBookmark"]');
+                    const bmOff = article.querySelector('[data-testid="bookmark"]');
+                    const meta = {
+                        likes: countOf(['like', 'unlike']),
+                        rts: countOf(['retweet', 'unretweet']),
+                        bookmarked: bmOn ? true : (bmOff ? false : null)
+                    };
+                    if (!this.passesFilter(meta)) { this.state.filteredOut.add(id); return; }
+
                     const dt = timeLink.querySelector('time')?.getAttribute('datetime');
                     this.state.vault.set(id, {
                         id,
                         text: article.querySelector('[data-testid="tweetText"]')?.innerText || '(no text / media only)',
                         date: dt,
-                        timestamp: dt ? Date.parse(dt) : 0
+                        timestamp: dt ? Date.parse(dt) : 0,
+                        ...meta
                     });
                     added++;
                 });
@@ -617,14 +740,17 @@
                     window.scrollBy(0, window.innerHeight * 2);
                     this.log(`Scanning screen... ${this.state.vault.size} found`);
                     await this.sleep(1800);
+                    newlySeen = 0;
                     const added = collect();
                     total += added;
-                    idleRounds = added ? 0 : idleRounds + 1;
+                    // "Idle" = no new tweets appeared at all (kept-by-filter ones still count as progress)
+                    idleRounds = newlySeen ? 0 : idleRounds + 1;
                 }
             }
             console.log(`[TRT] screen scan: +${total} (handle @${handle})`);
             this.renderList();
-            this.log(total ? `Screen Scan: ${total} found` : "Screen Scan: 0 found");
+            const kept = this.state.filteredOut.size ? ` · ${this.state.filteredOut.size} kept by filter` : '';
+            this.log((total ? `Screen Scan: ${total} found` : "Screen Scan: 0 found") + kept);
             return total;
         }
 
@@ -693,6 +819,227 @@
          * Auto mode: Load -> delete everything loaded -> Load again ...
          * Repeats until a Load returns 0 tweets. Pressing the button again stops it.
          */
+        // ---------------------------------------------------------------
+        // Filter
+        // ---------------------------------------------------------------
+
+        getFilter() {
+            const mode = (id) => this.get(id)?.checked ? 'exclude' : 'off';
+            const num = (id) => Math.max(0, parseInt(this.get(id)?.value, 10) || 0);
+            return {
+                likes: { mode: mode('trt-f-likes'), n: num('trt-f-likes-n') },
+                rts:   { mode: mode('trt-f-rts'),   n: num('trt-f-rts-n') },
+                bm:    { mode: mode('trt-f-bm') }
+            };
+        }
+
+        filterActive() {
+            const f = this.getFilter();
+            return f.likes.mode !== 'off' || f.rts.mode !== 'off' || f.bm.mode !== 'off';
+        }
+
+        /**
+         * meta: { likes, rts, bookmarked } — null/undefined means unknown.
+         * Returns true if the tweet should be deleted.
+         */
+        passesFilter(meta) {
+            const f = this.getFilter();
+            const rule = (mode, match) => {
+                if (mode === 'off') return true;
+                if (match === null) return false; // unknown → keep it (safe side)
+                return mode === 'exclude' ? !match : match;
+            };
+            const known = (v) => v !== null && v !== undefined && !Number.isNaN(v);
+            return rule(f.likes.mode, known(meta.likes) ? meta.likes >= f.likes.n : null)
+                && rule(f.rts.mode,   known(meta.rts)   ? meta.rts   >= f.rts.n   : null)
+                && rule(f.bm.mode,    typeof meta.bookmarked === 'boolean' ? meta.bookmarked : null);
+        }
+
+        updateFilterBadge() {
+            const f = this.getFilter();
+            const parts = [];
+            const label = { exclude: '제외' };
+            if (f.likes.mode !== 'off') parts.push(`❤${f.likes.n}+ ${label[f.likes.mode]}`);
+            if (f.rts.mode !== 'off')   parts.push(`🔁${f.rts.n}+ ${label[f.rts.mode]}`);
+            if (f.bm.mode !== 'off')    parts.push(`🔖 ${label[f.bm.mode]}`);
+            this.get('trt-filter-badge').textContent = parts.length ? `(${parts.join(' · ')})` : '';
+        }
+
+        /** Locks/unlocks filter inputs (they must not change mid-run). */
+        lockFilter(locked) {
+            this.get('trt-filter-ui').querySelectorAll('input').forEach(el => el.disabled = locked);
+        }
+
+        // ---------------------------------------------------------------
+        // Archive Delete
+        // ---------------------------------------------------------------
+
+        archiveKey() { return `trt_archive_done_${this.auth.uid}`; }
+
+        /** Loads saved progress (processed IDs) from chrome.storage, if available. */
+        async loadArchiveProgress() {
+            try {
+                if (chrome?.storage?.local) {
+                    const res = await chrome.storage.local.get(this.archiveKey());
+                    this.state.archiveDone = new Set(res[this.archiveKey()] || []);
+                }
+            } catch (e) { console.warn('[TRT] could not load archive progress', e); }
+        }
+
+        async saveArchiveProgress() {
+            try {
+                if (chrome?.storage?.local) {
+                    await chrome.storage.local.set({ [this.archiveKey()]: Array.from(this.state.archiveDone) });
+                }
+            } catch (e) { console.warn('[TRT] could not save archive progress', e); }
+        }
+
+        /**
+         * Parses tweets.js / tweet-headers.js from the X data archive.
+         * Format: window.YTD.tweets.part0 = [ { "tweet": { ... } }, ... ]
+         */
+        async loadArchive(files) {
+            if (!files || !files.length) return;
+            const map = new Map();
+            try {
+                for (const file of files) {
+                    const text = await file.text();
+                    const start = text.indexOf('[');
+                    if (start < 0) throw new Error(`${file.name}: 형식을 알 수 없음`);
+                    const arr = JSON.parse(text.slice(start));
+                    for (const entry of arr) {
+                        const t = entry.tweet || entry;
+                        const id = t.id_str || t.tweet_id || t.id;
+                        if (!id || !/^\d+$/.test(String(id))) continue;
+                        const full = t.full_text || t.text || '';
+                        map.set(String(id), {
+                            id: String(id),
+                            date: t.created_at ? new Date(t.created_at) : null,
+                            // tweet-headers.js has no text, so RT can't be detected there
+                            isRT: /^RT @/.test(full),
+                            likes: t.favorite_count !== undefined ? Number(t.favorite_count) : null,
+                            rts: t.retweet_count !== undefined ? Number(t.retweet_count) : null,
+                            bookmarked: null // the archive has no bookmark info
+                        });
+                    }
+                }
+            } catch (e) {
+                console.error('[TRT] archive parse error', e);
+                this.get('trt-archive-info').innerHTML = `<span class='trt-error-text'>파일을 읽을 수 없습니다: ${this.escape(e.message)}</span>`;
+                return;
+            }
+            this.state.archive = Array.from(map.values());
+            await this.loadArchiveProgress();
+            console.log(`[TRT] archive loaded: ${this.state.archive.length} tweets, ${this.state.archiveDone.size} already processed`);
+            this.updateArchiveInfo();
+            this.updateCounters();
+        }
+
+        /** Returns archive IDs that pass the filters and haven't been processed yet. */
+        archiveTargets() {
+            const includeRT = this.get('trt-archive-rt').checked;
+            const fromV = this.get('trt-archive-from').value;
+            const toV = this.get('trt-archive-to').value;
+            const from = fromV ? new Date(fromV + 'T00:00:00') : null;
+            const to = toV ? new Date(toV + 'T23:59:59') : null;
+            const inFilter = this.state.archive.filter(t => {
+                if (!includeRT && t.isRT) return false;
+                if ((from || to) && !t.date) return false;
+                if (from && t.date < from) return false;
+                if (to && t.date > to) return false;
+                return this.passesFilter(t);
+            });
+            const todo = inFilter.filter(t => !this.state.archiveDone.has(t.id)).map(t => t.id);
+            return { inFilter: inFilter.length, todo };
+        }
+
+        updateArchiveInfo(extra = '') {
+            const info = this.get('trt-archive-info');
+            const bar = this.get('trt-archive-bar');
+            if (!this.state.archive.length) { info.textContent = '파일을 선택하세요'; bar.style.width = '0%'; return; }
+            const { inFilter, todo } = this.archiveTargets();
+            const done = inFilter - todo.length;
+            const rts = this.state.archive.filter(t => t.isRT).length;
+            info.innerHTML = `아카이브 ${this.state.archive.length}개 (리트윗 ${rts}) · 대상 ${inFilter}개<br>` +
+                             `처리 완료 ${done} · 남음 ${todo.length}${extra ? '<br>' + extra : ''}`;
+            bar.style.width = inFilter ? `${(done / inFilter * 100).toFixed(1)}%` : '0%';
+        }
+
+        /**
+         * Deletes every tweet ID from the archive (after filters), skipping already-processed ones.
+         * Progress is saved, so it can resume after closing the tab.
+         */
+        async archiveDelete() {
+            const btn = this.get('trt-archive-btn');
+            if (this.state.archiveRunning) {
+                this.state.stopRequested = true;
+                this.log("Stopping...");
+                return;
+            }
+            if (this.state.isPurging) return;
+
+            const target = this.auth.endpoints['DeleteTweet'];
+            if (!target) return this.log("<span class='trt-error-text'>Delete Endpoint Missing</span>");
+
+            const { todo } = this.archiveTargets();
+            if (!todo.length) return this.updateArchiveInfo("남은 대상이 없습니다 ✅");
+
+            const mins = Math.ceil(todo.length * 0.8 / 60);
+            if (!confirm(
+                `ARCHIVE DELETE\n\n아카이브의 트윗 ${todo.length}개를 삭제합니다. (예상 최소 ${mins}분 이상)\n` +
+                "진행 상황은 저장되므로 중간에 멈춰도 이어서 할 수 있습니다.\n" +
+                "삭제된 트윗은 복구할 수 없습니다. 진행할까요?"
+            )) return;
+
+            const lockIds = ['trt-purge-api-btn', 'trt-purge-screen-btn', 'trt-archive-file', 'trt-archive-reset', 'trt-archive-rt', 'trt-archive-from', 'trt-archive-to'];
+            const setRunning = (running) => {
+                this.state.isPurging = running;
+                this.state.archiveRunning = running;
+                this.lockFilter(running);
+                btn.className = `trt-btn ${running ? 'trt-btn-stop' : 'trt-btn-purge'}`;
+                btn.style.marginTop = '0';
+                btn.innerText = running ? '⏹ Stop' : '🗄 Archive Delete';
+                btn.disabled = false;
+                lockIds.forEach(id => { const el = this.get(id); if (el) el.disabled = running; });
+                this.updateCounters();
+            };
+
+            this.state.stopRequested = false;
+            setRunning(true);
+
+            let ok = 0, failed = 0, failStreak = 0;
+            let finalMsg = "Archive Delete Finished";
+            const stats = () => `이번 실행: 삭제 ${ok} · 실패 ${failed}`;
+            try {
+                for (let i = 0; i < todo.length; i++) {
+                    if (this.state.stopRequested) break;
+                    const id = todo[i];
+                    this.log(`Archive: ${i + 1}/${todo.length} deleting...`);
+
+                    const res = await this.deleteOne(id, target);
+                    if (res) { ok++; failStreak = 0; this.state.archiveDone.add(id); }
+                    else { failed++; failStreak++; }
+
+                    this.updateArchiveInfo(stats());
+                    if (ok % 20 === 0) await this.saveArchiveProgress();
+
+                    // Many failures in a row usually means session/endpoint trouble
+                    if (failStreak >= 10) {
+                        finalMsg = "<span class='trt-error-text'>Stopped: 10 failures in a row (see console)</span>";
+                        break;
+                    }
+                    await this.sleep(600);
+                }
+                if (this.state.stopRequested) finalMsg = `Archive stopped (deleted ${ok})`;
+                else if (!finalMsg.includes('Stopped')) finalMsg = `✅ Archive done (deleted ${ok}, failed ${failed})`;
+            } finally {
+                await this.saveArchiveProgress();
+                this.state.stopRequested = false;
+                setRunning(false);
+                this.log(finalMsg);
+            }
+        }
+
         /**
          * Auto delete, two independent modes:
          *  - 'api'    : Load via UserTweets API -> delete all -> reload ... until API returns 0
@@ -726,6 +1073,7 @@
             };
             const setRunning = (running) => {
                 this.state.isPurging = running;
+                this.lockFilter(running);
                 for (const [key, b] of Object.entries(buttons)) {
                     if (!b.el) continue;
                     const active = running && key === mode;
@@ -737,8 +1085,13 @@
             };
 
             this.state.stopRequested = false;
+            this.state.filteredOut.clear();
+            this.state.screenSeen.clear();
             setRunning(true);
             if (!isApi) window.scrollTo(0, 0);
+            // API mode pages forward with the cursor instead of reloading the top every round,
+            // so tweets kept by the filter don't block progress.
+            let apiCursor = null;
 
             let round = 0;
             let emptyStreak = 0;
@@ -753,7 +1106,8 @@
 
                     if (isApi) {
                         this.log(`Round ${round}: Loading (API)...`);
-                        const fetched = await this.fetchTweets();
+                        const startCursor = apiCursor;
+                        const fetched = await this.fetchTweets(15, apiCursor);
                         if (fetched === 'ratelimited') {
                             await this.waitForRateLimit(this.state.lastLoadResponse);
                             round--;
@@ -763,6 +1117,14 @@
                             finalMsg = "<span class='trt-error-text'>Stopped: Load Failed</span>";
                             break;
                         }
+                        if (this.state.vault.size === 0 && startCursor) {
+                            // Reached the end from a mid-timeline cursor — verify from the top
+                            apiCursor = null;
+                            this.log("Reached end — rechecking from the top...");
+                            await this.sleep(1500);
+                            continue;
+                        }
+                        apiCursor = this.state.nextCursor;
                     } else {
                         this.log(`Round ${round}: Scanning screen...`);
                         // Collect up to ~40 per round so deletion starts without scrolling forever
@@ -774,7 +1136,8 @@
                         // Empty result can be transient (API sparse page / screen still loading)
                         emptyStreak++;
                         if (emptyStreak >= 2) {
-                            finalMsg = `✅ Done — 0 found (${this.state.deleted.size} deleted)`;
+                            const kept = this.state.filteredOut.size ? `, ${this.state.filteredOut.size} kept by filter` : '';
+                            finalMsg = `✅ Done — 0 found (${this.state.deleted.size} deleted${kept})`;
                             break;
                         }
                         this.log("0 found — double-checking...");
